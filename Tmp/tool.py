@@ -240,6 +240,8 @@ class V_Word(Comm_Word):
 	def SetWordStyleList(self):
 		if 0 == len(self.TypeFormatList):
 			self.SetTypeFormatList()
+		if "する" == self.Word[-2:]:
+			self.WordStyleList.append(self.TypeFormatList[0][:-2])
 		# 原形
 		self.WordStyleList.append(self.TypeFormatList[0])
 		# ます形
@@ -525,16 +527,20 @@ class Japanese():
 
 	# 句子注音
 	def AnnotateSentence(self, data):
-		KeyWords = re.sub(re.compile('([ 　、。?「」……:a-zA-Z々' + Pseudonym + ']+)'), r'|', data).strip('|')
+		KeyWords = re.sub(re.compile('([ 　、。?「」……:：a-zA-Z々' + Pseudonym + ']+)'), r'', data)
 		if 0 == len(KeyWords):
 			return data
+
+		# findall是找到所有的字符,再在字符中添加空格，当然你想添加其他东西当然也可以
+		KeyWords = '|'.join(re.compile('.{1}').findall(KeyWords))
 
 		cmd = "grep '\[\^' " + TanngoFile + " | awk -F'[:：（`＝]' '{print $3}' | grep -E \"" + KeyWords + "\" | sed 's/[々" + Pseudonym + KeyWords.strip('|') + "]/ /g' | sort | uniq | xargs | sed 's/ /|/g'"
 		#print(cmd)
 		ExpectWords = subprocess.Popen(cmd, shell=True, stdout=subprocess.PIPE).stdout.readlines()[0].decode().rstrip()
-		cmd = "grep -n '\[\^' " + TanngoFile + " | awk -F'[:：（`＝]' '{print length($4)\",[\"$1\"],\"$4\",\"$6}' | grep -E \"" + KeyWords + "\" | sort"
+		cmd = "grep -n '\[\^' " + TanngoFile + " | awk -F'[:：（`＝]' '{print length($4)\",[\"$1\"],\"$4\",\"$6}' | grep -E \"" + KeyWords + "\""
 		if len(ExpectWords) > 0:
 			cmd = cmd + " | grep -vE \"" + ExpectWords + "\""
+		cmd = cmd +  "| sort"
 		print(cmd)
 		results = subprocess.Popen(cmd, shell=True, stdout=subprocess.PIPE).stdout.readlines()
 
@@ -571,26 +577,20 @@ class Japanese():
 		return result
 
 class Markdown():
-	def Example(self, data):
-		step1 = re.sub(r'\[([^\]]*)\n\n([^\]]*)\]', r'<details>\n<summary>\1</summary>\n\n\2\n</details>\n', data)
-		result = re.sub(r'\[([^\]]*)\n([^\]]*)\]', r'<details>\n<summary>\1</summary>\n\n\2\n</details>\n', step1)
-		#print(data)
-		#print("↓1")
-		#print(step1)
-		#print("↓2")
-		#print(result)
-		#print("-------------------------------------")
-		return result
-
+	# [生]^(なま)ごみ-><ruby>生<rp>(</rp><rt>なま</rt><rp>)</rp></ruby>ごみ
 	def Annotate(self, data):
 		tmp = data
 		while 1:
-			result = re.sub(r'(.*)\[([^\]]+)\]\^\(([^\)]]*)\)(.*)', r'\1<ruby>\2<rp>(</rp><rt>\3</rt><rp>)</rp></ruby>\4', data)
+			result = re.sub(re.compile('(.*)\[([^\[\]]+)\]\^\(([^\(\)]+)\)(.*)'), r'\1<ruby>\2<rp>(</rp><rt>\3</rt><rp>)</rp></ruby>\4', tmp)
 			if result == tmp:
 				break
 			else:
 				tmp=result
 		return result
+
+	# tmp_j.md -> Summary.md + Detail.md
+	def SplitFile(self, SummaryFile, DetailFile):
+		topic_array = [0,0,0,0,0,0,0,0,0,0]
 
 def Usage():
 	print('------------------------------------------------------------')
@@ -601,6 +601,7 @@ def Usage():
 	print(' -fw [单词|.md文件] : 单词格式化')
 	print(' -s [句子|.md文件] : 句子注音')
 	print(' -c [单词,单词,单词] : 单词变形')
+	print(' -m [内容|.md文件] : makedown格式变化')
 	print(' eg:')
 	print(' python3 tool.py -fs tmp_fs.md')
 	print(' python3 tool.py -fw [引っ掛ける]ひっかける（他）：把……')
@@ -609,6 +610,8 @@ def Usage():
 	print(' python3 tool.py -s tmp_s.md')
 	print(' python3 tool.py -c 買う')
 	print(' python3 tool.py -c 買う,飛んでくる,降りる,消す,休む,注ぐ,誤魔化す,受け取る,遊ぶ,了解する,増やす,注意する,直る,伝える,招く,来る,する')
+	print(' python3 tool.py -m [大]^(おお)[家]^(や)さん')
+	print(' python3 tool.py -m tmp_m.md')
 
 __name__ = '__main__'
 if __name__ == '__main__':
@@ -664,9 +667,11 @@ if __name__ == '__main__':
 					elif 1 == flag and len(line) > 1:
 						print("---------------------------------------------------------------------------------------------------------\n"+line)
 						line = v.AnnotateSentence(line)
+						#line = mk.Annotate(v.AnnotateSentence(line))
 					savefd.write(line + '\n')
 		if data:
 			result = v.AnnotateSentence(data)
+			#result = mk.Annotate(v.AnnotateSentence(data))
 			savefd.write(result + '\n')
 
 	elif "-c" == mode:
@@ -683,6 +688,17 @@ if __name__ == '__main__':
 			savefd.write("|-|-|-|-|-|-|-|-|-|-|-|-|-|-|\n")
 			savefd.write("|" + "|".join(v.ChangeType(type, data)) + "|\n")
 
+	elif "-m" == mode:
+		if file:
+			with open(argvs[2], 'r') as f:
+				lines = f.readlines()
+				flag = 0
+				for line in lines:
+					line=line[:-1]
+					line = mk.Annotate(line)
+					savefd.write(line + '\n')
+		if data:
+			print(mk.Annotate(data))
 
 
 
