@@ -10,7 +10,7 @@ AnnotateSentenceFile = "AnnotateSentence.md"
 MarkdownFile = "Markdown.md"
 
 HIRAGANA = "あいうえおかきくけこさしすせそたちつてとなにぬねのはひふへほまみむめもやゆよらりるれろわをんがぎぐげござじずぜぞだぢづでどばびぶべぼぱぴぷぺぽゃゅょっ"
-KATAGANA = "アイウエオカキクケコサシスセソタチツテトナニヌネノハヒフヘホマミムメモヤユヨラリルレロワヲンガギグゲゴザジズゼゾダヂヅデドバビブベボパピプペポャュョッーィェ"
+KATAGANA = "アイウエオカキクケコサシスセソタチツテトナニヌネノハヒフヘホマミムメモヤユヨラリルレロワヲンガギグゲゴザジズゼゾダヂヅデドバビブベボパピプペポャュョッーァィゥェォ"
 Pseudonym = HIRAGANA + KATAGANA
 FiftyToneDiagram = [["あ","い","う","え","お"],
 					["か","き","く","け","こ"],
@@ -568,7 +568,7 @@ class Japanese():
 			tmp_dict['types'] = ComWord.GetWordStyleList()
 			annotate_list.append(tmp_dict)
 
-		tmp = data.replace(' ','').replace('　','')
+		tmp = data.replace(' ','')
 		result = tmp
 		for tmp_dict in annotate_list:
 			#print(str(tmp_dict))
