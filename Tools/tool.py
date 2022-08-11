@@ -9,6 +9,10 @@ ResulteFile = "Result.md"
 AnnotateSentenceFile = "AnnotateSentence.md"
 MarkdownFile = "Markdown.md"
 
+SummaryFile = "Summary.md"
+DetailFile = "Detail.md"
+MAX_TOC = 10
+
 HIRAGANA = "あいうえおかきくけこさしすせそたちつてとなにぬねのはひふへほまみむめもやゆよらりるれろわをんがぎぐげござじずぜぞだぢづでどばびぶべぼぱぴぷぺぽゃゅょっ"
 KATAGANA = "アイウエオカキクケコサシスセソタチツテトナニヌネノハヒフヘホマミムメモヤユヨラリルレロワヲンガギグゲゴザジズゼゾダヂヅデドバビブベボパピプペポャュョッーァィゥェォ"
 Pseudonym = HIRAGANA + KATAGANA
@@ -234,6 +238,19 @@ class V_Word(Comm_Word):
 			# "一段"
 			self.SetV1TypeFormatList()
 			self.WordStyleChangeLen = 1
+		elif "る" == self.Word[-1] and self.Word[-2] not in "知要入煎炒蹴減散練照切"+Pseudonym:
+			cmd = "grep '\[\^" + self.Word + "\]' " + TanngoFile + " | awk -F'[:：（`＝]' '{print $5}'"
+			#print(cmd)
+			results = subprocess.Popen(cmd, shell=True, stdout=subprocess.PIPE).stdout.readlines()
+			results = results[0].decode().rstrip()
+			if ")" == results[-2] and "(" == results[-4] and results[-3] in "いえきけしせちてにねひへみめりれぎげじぜぢでびべぴぺ":
+				# "一段"
+				self.SetV1TypeFormatList()
+				self.WordStyleChangeLen = 1
+			else:
+				# "五段"
+				self.SetV5TypeFormatList()
+				self.WordStyleChangeLen = 1
 		else:
 			#"知る","要る","入る","煎る","炒る","蹴る","減る","散る","練る","照る","切る","混じる","区切る","千切る","裏切る"]
 			# "五段"
@@ -249,7 +266,7 @@ class V_Word(Comm_Word):
 		self.WordStyleList.append(self.TypeFormatList[0])
 		# ます形
 		# ます　ません　ましょう　ました　ませんでした　まして
-		self.WordStyleList.append(self.TypeFormatList[1][:-1])
+		self.WordStyleList.append(self.TypeFormatList[1][:-2])
 		# て形
 		self.WordStyleList.append(self.TypeFormatList[2])
 		# た形
@@ -512,7 +529,7 @@ class Japanese():
 		if "い" == Word[-1]:
 			#"イ形"
 			ComWord = I_Word(Word)
-		elif Word[-1] in "うくすつぬふむるぐずづぶぷ":
+		elif Word[-1] in "うくすつぬふむるぐづぶぷ":# Skip"ず"
 			ComWord = V_Word(Word)
 		else:
 			ComWord = N_Word(Word)
@@ -531,7 +548,7 @@ class Japanese():
 
 	# 句子注音
 	def AnnotateSentence(self, data):
-		KeyWords = re.sub(re.compile('([ 　、。?「」……:：a-zA-Z々' + Pseudonym + ']+)'), r'', data)
+		KeyWords = re.sub(re.compile('([0-9\\\^\[\]\*\(\)a-zA-Z 　、。?「」_※%<>/`……:：々' + Pseudonym + ']+)'), r'', data)
 		if 0 == len(KeyWords):
 			return data
 
@@ -573,8 +590,10 @@ class Japanese():
 		for tmp_dict in annotate_list:
 			#print(str(tmp_dict))
 			for key in tmp_dict['types']:
-				if key in tmp and "["+key+ "]" not in tmp:
-					result = tmp.replace(tmp_dict['pattern'],tmp_dict['annotate'])
+				if key in tmp and "["+key not in tmp and key+"]" not in tmp:
+					#print(tmp)
+					#print("      "+key+"->"+key.replace(tmp_dict['pattern'], tmp_dict['annotate']))
+					result = tmp.replace(key, key.replace(tmp_dict['pattern'], tmp_dict['annotate']))
 					tmp=result
 					break
 		#print(data)
@@ -621,6 +640,19 @@ class Japanese():
 		tmpsavefd.close()
 
 class Markdown():
+	# [中文
+	# 日文]
+	# 或
+	# [中文
+	# 
+	# 日文
+	# 日文]
+	# ->
+	# <details>
+	# <summary>中文</summary>
+	# 
+	# 日文
+	# </details>
 	def Sentence(self, data):
 		step1 = re.sub(r'\[([^\]]*)\n\n([^\]]*)\]', r'<details>\n<summary>\1</summary>\n\n\2\n</details>\n', data)
 		result = re.sub(r'\[([^\]]*)\n([^\]]*)\]', r'<details>\n<summary>\1</summary>\n\n\2\n</details>\n', step1)
@@ -631,11 +663,12 @@ class Markdown():
 		#print(result)
 		#print("-------------------------------------")
 		return result
+
 	# [生]^(なま)ごみ-><ruby>生<rp>(</rp><rt>なま</rt><rp>)</rp></ruby>ごみ
 	def Annotate(self, data):
 		tmp = data
 		while 1:
-			result = re.sub(re.compile('(.*)\[([^\[\]]+)\]\^\(([^\(\)]+)\)(.*)'), r'\1<ruby>\2<rp>(</rp><rt>\3</rt><rp>)</rp></ruby>\4', tmp)
+			result = re.sub(re.compile('(.*)\[([^\^\[\]]+)\]\^\(([^\(\)]+)\)(.*)'), r'\1<ruby>\2<rp>(</rp><rt>\3</rt><rp>)</rp></ruby>\4', tmp)
 			if result == tmp:
 				break
 			else:
@@ -643,8 +676,37 @@ class Markdown():
 		return result
 
 	# tmp_j.md -> Summary.md + Detail.md
-	def SplitFile(self, SummaryFile, DetailFile):
-		topic_array = [0,0,0,0,0,0,0,0,0,0]
+	def SplitFile(self, File):
+		topic_array = []
+		for id in range(0,MAX_TOC):
+			topic_array.append(0)
+
+		# 读取所有的目录
+		cmd = "grep \"^#\" " + File + " | awk -F'<' '{print $1}'"
+		print(cmd)
+		results = subprocess.Popen(cmd, shell=True, stdout=subprocess.PIPE).stdout.readlines()
+
+		topic_list = {}
+		for line in results:
+			data = line.decode().strip()
+			id = 0
+			# 更新topic id
+			while "#" == data[id]:
+				topic_array[id] += 1
+				id += 1
+			# 清空其他id
+			while 0 != topic_array[id]:
+				topic_array[id] = 0
+				id += 1
+			print(str(topic_array))
+			topic_id = '_'.join(str(i) for i in topic_array)
+			
+			
+			
+			print(topic_id)
+			print(data + "<span id=" + topic_id + ">[Detail](" + DetailFile + "#" + topic_id + ")</span>")
+			print(data + "<span id=" + topic_id + ">[Summary](" + SummaryFile + "#" + topic_id + ")</span>")
+
 
 def Usage():
 	print('------------------------------------------------------------')
@@ -733,10 +795,18 @@ if __name__ == '__main__':
 						flag = 1
 					elif "</details" in line:
 						flag = 0
-					elif 1 == flag and len(line) > 1:
-						print("---------------------------------------------------------------------------------------------------------\n"+line)
-						line = v.AnnotateSentence(line)
-						#line = mk.Annotate(v.AnnotateSentence(line))
+					elif 1 == flag and len(line) > 0:
+						if "。" not in line:
+							line = v.AnnotateSentence(line)
+						else:
+							line = re.sub(r'([。、])', r'\1\n', line)
+							data_array = line.split("\n")
+							line = ""
+							for data in data_array:
+								if len(data) > 0:
+									print("---------------------------------------------------------------------------------------------------------\n"+data)
+									line += v.AnnotateSentence(data)
+									#line = mk.Annotate(v.AnnotateSentence(line))
 					savefd.write(line + '\n')
 		if data:
 			result = v.AnnotateSentence(data)
@@ -775,6 +845,8 @@ if __name__ == '__main__':
 			savefd.write(mk.Annotate(data) + '\n')
 		savefd.close()
 
+	elif "-t" == mode:
+		mk.SplitFile(argvs[2])
 
 	#while len(argvs) > 1:
 	#	myArgv = argvs.pop(1)	# 0th is this file's name
@@ -800,3 +872,41 @@ if __name__ == '__main__':
 		print(result1)
 		print(result2)
 		print("-------------------------------------")
+
+#--------------------------------------------------------------------------------------------------
+def __to_zh_sub(cls, digit, rank_str):
+	res, length = "零", len(digit)
+	for i in range(length):
+		if digit[i] != "0":
+			res = res + cls.rank_1[i] + cls.number_list[int(digit[i])]
+		elif res[-1] != "零":
+			res += "零"
+
+	if res != "零":
+		return rank_str + res[1:]
+	return res
+
+"""
+字符串数字转对应中文
+:param digit: 数字，可以是string也可以是int，不支持float
+:return: 对应的中文
+"""
+def to_zh(cls, digit) -> str:
+	number_list = ['零','一','二','三','四','五','六','七','八','九']
+	rank_1 = ['', '十','百','千']
+	rank_4 = ['', '万','億']
+	digit = str(digit)
+	if len(digit) > 28:
+		return digit
+
+	digit, res = digit[-1::-1], "零"
+	for i in range(0, len(digit), 4):
+		mid_res = __to_zh_sub(digit[i:i + 4], cls.rank_4[i // 4])
+		if mid_res != "零":
+			res += mid_res
+
+	if res != "零":
+		res = res[-1:0:-1]
+		return res if res[:2] != "一十" else res[1:]
+	return res
+#--------------------------------------------------------------------------------------------------
