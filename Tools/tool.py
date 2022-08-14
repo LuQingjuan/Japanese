@@ -548,21 +548,23 @@ class Japanese():
 
 	# 句子注音
 	def AnnotateSentence(self, data):
-		KeyWords = re.sub(re.compile('([0-9\\\^\[\]\*\(\)a-zA-Z 　、。?「」_※%<>/`……:：々' + Pseudonym + ']+)'), r'', data)
+		KeyWords = re.sub(re.compile('([0-9\\\^\[\]\*\(\)\-a-zA-Z 　、。?「」_※%<>/`……:：々' + Pseudonym + ']+)'), r'', data)
 		if 0 == len(KeyWords):
-			return data
+			return data,""
 
 		# findall是找到所有的字符,再在字符中添加空格，当然你想添加其他东西当然也可以
 		KeyWords = '|'.join(re.compile('.{1}').findall(KeyWords))
 
-		cmd = "grep '^\[\^' " + TanngoFile + " | awk -F'[:：（`＝]' '{print $3}' | grep -E \"" + KeyWords + "\" | sed 's/[々" + Pseudonym + KeyWords.strip('|') + "]/ /g' | sort | uniq | xargs | sed 's/ /|/g'"
+		cmd = "grep '^\[\^' " + TanngoFile + " | awk -F'[:：（`＝]' '{print $3}' | grep -E \"" + KeyWords + "\" | sed 's/[々" + Pseudonym + KeyWords.replace("|","") + "]/ /g' | xargs | sed 's/ /|/g'"
+		#                            / /g' | sort | uniq | xargs | sed 's/ /|/g'"
+		#                            //g' | xargs | sed 's/./& /g' | xargs -n1 | sort | uniq | xargs | sed 's/ /|/g'"
 		#print(cmd)
 		ExpectWords = subprocess.Popen(cmd, shell=True, stdout=subprocess.PIPE).stdout.readlines()[0].decode().rstrip()
 		cmd = "grep -n '^\[\^' " + TanngoFile + " | awk -F'[:：（`＝]' '{print length($4)\",[\"$1\"],\"$4\",\"$6}' | grep -E \"" + KeyWords + "\""
 		if len(ExpectWords) > 0:
 			cmd = cmd + " | grep -vE \"" + ExpectWords + "\""
 		cmd = cmd +  "| sort"
-		print(cmd)
+		#print(cmd)
 		results = subprocess.Popen(cmd, shell=True, stdout=subprocess.PIPE).stdout.readlines()
 
 		annotate_list = []
@@ -570,7 +572,7 @@ class Japanese():
 		while id > 0:
 			id -= 1
 			line = results[id]
-			print("    "+line.decode().rstrip().replace(',',":"))
+			#print("    "+line.decode().rstrip().replace(',',":"))
 			tmp_dict={}
 			row = line.decode().rstrip().split(',')
 			ComWord = self.CreateWordClass(row[2])
@@ -582,22 +584,29 @@ class Japanese():
 			else:
 				tmp_dict['pattern'] = row[2]
 				tmp_dict['annotate'] = row[3]
+			tmp_dict['word'] = row[2]
 			tmp_dict['types'] = ComWord.GetWordStyleList()
 			annotate_list.append(tmp_dict)
 
 		tmp = data.replace(' ','')
 		result = tmp
+		tanngo_info = ""
 		for tmp_dict in annotate_list:
-			#print(str(tmp_dict))
 			for key in tmp_dict['types']:
 				if key in tmp and "["+key not in tmp and key+"]" not in tmp:
+					#print(str(tmp_dict))
 					#print(tmp)
 					#print("      "+key+"->"+key.replace(tmp_dict['pattern'], tmp_dict['annotate']))
+					cmd = "grep \"\`" + tmp_dict['word'] + "\`\" " + TanngoFile
+					#print(cmd)
+					results = subprocess.Popen(cmd, shell=True, stdout=subprocess.PIPE).stdout.readlines()
+					#tanngo_info += results[0].decode()
+					#result = tmp.replace(key, key.replace(tmp_dict['pattern'], tmp_dict['annotate']+"[^"+ tmp_dict['word'] +"]"))
 					result = tmp.replace(key, key.replace(tmp_dict['pattern'], tmp_dict['annotate']))
-					tmp=result
+					tmp = result
 					break
 		#print(data)
-		return result
+		return result,tanngo_info
 
 	def UpdateTanngo(self):
 		# 读取所有的单词
@@ -791,27 +800,33 @@ if __name__ == '__main__':
 				flag = 0
 				for line in lines:
 					line=line[:-1]
+					tanngo_info = ""
 					if "</summary" in line:
 						flag = 1
 					elif "</details" in line:
 						flag = 0
 					elif 1 == flag and len(line) > 0:
 						if "。" not in line:
-							line = v.AnnotateSentence(line)
+							line,tanngo_info = v.AnnotateSentence(line)
 						else:
 							line = re.sub(r'([。、])', r'\1\n', line)
 							data_array = line.split("\n")
 							line = ""
+							tanngo_info = ""
 							for data in data_array:
 								if len(data) > 0:
 									print("---------------------------------------------------------------------------------------------------------\n"+data)
-									line += v.AnnotateSentence(data)
-									#line = mk.Annotate(v.AnnotateSentence(line))
+									result,tanngo = v.AnnotateSentence(data)
+									line += result
+									tanngo_info += tanngo
 					savefd.write(line + '\n')
+					if len(tanngo_info) > 0:
+						savefd.write(tanngo_info + "\n")
 		if data:
-			result = v.AnnotateSentence(data)
-			#result = mk.Annotate(v.AnnotateSentence(data))
+			result,tanngo = v.AnnotateSentence(data)
 			savefd.write(result + '\n')
+			if len(tanngo) > 0:
+				savefd.write(tanngo + "\n")
 		savefd.close()
 		os.system("cat tmp.md>>" + AnnotateSentenceFile + ";rm tmp.md")
 
@@ -846,7 +861,8 @@ if __name__ == '__main__':
 		savefd.close()
 
 	elif "-t" == mode:
-		mk.SplitFile(argvs[2])
+		v.UpdateTanngo()
+		#mk.SplitFile(argvs[2])
 
 	#while len(argvs) > 1:
 	#	myArgv = argvs.pop(1)	# 0th is this file's name
