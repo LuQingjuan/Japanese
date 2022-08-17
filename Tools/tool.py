@@ -1,5 +1,6 @@
 import re
 import os
+from sre_parse import SPECIAL_CHARS
 import sys
 import subprocess
 
@@ -15,6 +16,7 @@ MAX_TOC = 10
 
 HIRAGANA = "あいうえおかきくけこさしすせそたちつてとなにぬねのはひふへほまみむめもやゆよらりるれろわをんがぎぐげござじずぜぞだぢづでどばびぶべぼぱぴぷぺぽゃゅょっ"
 KATAGANA = "アイウエオカキクケコサシスセソタチツテトナニヌネノハヒフヘホマミムメモヤユヨラリルレロワヲンガギグゲゴザジズゼゾダヂヅデドバビブベボパピプペポャュョッーァィゥェォ"
+SPECIAL_FLAG = ""
 Pseudonym = HIRAGANA + KATAGANA
 FiftyToneDiagram = [["あ","い","う","え","お"],
 					["か","き","く","け","こ"],
@@ -548,7 +550,7 @@ class Japanese():
 
 	# 句子注音
 	def AnnotateSentence(self, data):
-		KeyWords = re.sub(re.compile('([0-9\\\^\[\]\*\(\)\-a-zA-Z 　、。?「」_※%<>/`……:：々' + Pseudonym + ']+)'), r'', data)
+		KeyWords = re.sub(re.compile('([' + Pseudonym + ' 　［／］？~★·（＊）、。?「」_※%<>/`……:：々a-zA-Z0-9\\^\[\]\*\(\)\-]+)'), r'', data)
 		if 0 == len(KeyWords):
 			return data,""
 
@@ -558,13 +560,13 @@ class Japanese():
 		cmd = "grep '^\[\^' " + TanngoFile + " | awk -F'[:：（`＝]' '{print $3}' | grep -E \"" + KeyWords + "\" | sed 's/[々" + Pseudonym + KeyWords.replace("|","") + "]/ /g' | xargs | sed 's/ /|/g'"
 		#                            / /g' | sort | uniq | xargs | sed 's/ /|/g'"
 		#                            //g' | xargs | sed 's/./& /g' | xargs -n1 | sort | uniq | xargs | sed 's/ /|/g'"
-		#print(cmd)
+		#print("Key:  "+cmd)
 		ExpectWords = subprocess.Popen(cmd, shell=True, stdout=subprocess.PIPE).stdout.readlines()[0].decode().rstrip()
 		cmd = "grep -n '^\[\^' " + TanngoFile + " | awk -F'[:：（`＝]' '{print length($4)\",[\"$1\"],\"$4\",\"$6}' | grep -E \"" + KeyWords + "\""
 		if len(ExpectWords) > 0:
 			cmd = cmd + " | grep -vE \"" + ExpectWords + "\""
 		cmd = cmd +  "| sort"
-		#print(cmd)
+		#print("List: "+cmd)
 		results = subprocess.Popen(cmd, shell=True, stdout=subprocess.PIPE).stdout.readlines()
 
 		annotate_list = []
@@ -605,7 +607,10 @@ class Japanese():
 					result = tmp.replace(key, key.replace(tmp_dict['pattern'], tmp_dict['annotate']))
 					tmp = result
 					break
-		#print(data)
+		#print(result)
+		cmd = "echo \"" + result + "\" | sed -e 's/\[[^\[\]]*\]\^([^\[\)]*)//g' | sed 's/[" + Pseudonym + " 　［／］？~★·（＊）、。?「」_※%<>/`……:：々a-zA-Z0-9\\\^\[\*\(\)\-]/ /g' | xargs -n 1 >> tmp_tanngo.txt"
+		#print(cmd)
+		os.system(cmd)
 		return result,tanngo_info
 
 	def UpdateTanngo(self):

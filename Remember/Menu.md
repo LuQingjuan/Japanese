@@ -41,5 +41,8 @@
 [第22课　日本の教育・日本的教育](Dialogue/22.md)
 [第23课　別れ・告别](Dialogue/23.md)
 
+# 会话
+[趣味を尋ねる](Dialogue/syumi_o_tazuneru.md)
+
 # 其他
 @import "Dialogue.md"
