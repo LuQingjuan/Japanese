@@ -550,7 +550,7 @@ class Japanese():
 
 	# 句子注音
 	def AnnotateSentence(self, data):
-		KeyWords = re.sub(re.compile('([' + Pseudonym + ' 　［／］？~★·（＊）、。?「」_※%<>/`……:：々a-zA-Z0-9\\^\[\]\*\(\)\-]+)'), r'', data)
+		KeyWords = re.sub(re.compile('([\.' + Pseudonym + '～~ 　［／］？★·（＊）、。?「」_※%<>/`……:：々a-zA-Z0-9\\^\[\]\*\(\)\-]+)'), r'', data)
 		if 0 == len(KeyWords):
 			return data,""
 
@@ -562,21 +562,28 @@ class Japanese():
 		#                            //g' | xargs | sed 's/./& /g' | xargs -n1 | sort | uniq | xargs | sed 's/ /|/g'"
 		#print("Key:  "+cmd)
 		ExpectWords = subprocess.Popen(cmd, shell=True, stdout=subprocess.PIPE).stdout.readlines()[0].decode().rstrip()
-		cmd = "grep -n '^\[\^' " + TanngoFile + " | awk -F'[:：（`＝]' '{print length($4)\",[\"$1\"],\"$4\",\"$6}' | grep -E \"" + KeyWords + "\""
+		cmd = "grep -n '^\[\^' " + TanngoFile + " | awk -F'[:：（`＝]' '{print \"[\"$1\"],\"$4\",\"$6}' | grep -E \"" + KeyWords + "\""
 		if len(ExpectWords) > 0:
 			cmd = cmd + " | grep -vE \"" + ExpectWords + "\""
-		cmd = cmd +  "| sort"
 		#print("List: "+cmd)
 		results = subprocess.Popen(cmd, shell=True, stdout=subprocess.PIPE).stdout.readlines()
 
 		annotate_list = []
+		id = 0
+		while id < len(results):
+			count = len(re.sub(re.compile('([' + Pseudonym + '～~ 　［／］？★·（＊）、。?「」_※%<>/`……:：々a-zA-Z0-9\\^\[\]\*\(\)\-]+)'), r'', results[id].decode().rstrip().split(',')[1]))
+			results[id] = str(count) + "," + results[id].decode()
+			#print(results[id])
+			id += 1
+
+		results.sort() 
 		id = len(results)
 		while id > 0:
 			id -= 1
 			line = results[id]
-			#print("    "+line.decode().rstrip().replace(',',":"))
+			#print("    "+line.rstrip().replace(',',":"))
 			tmp_dict={}
-			row = line.decode().rstrip().split(',')
+			row = line.rstrip().split(',')
 			ComWord = self.CreateWordClass(row[2])
 			ComWord.SetWordStyleList()
 			change_len = ComWord.GetWordStyleChangeLen()
@@ -608,7 +615,7 @@ class Japanese():
 					tmp = result
 					break
 		#print(result)
-		cmd = "echo \"" + result + "\" | sed -e 's/\[[^\[\]]*\]\^([^\[\)]*)//g' | sed 's/[" + Pseudonym + " 　［／］？~★·（＊）、。?「」_※%<>/`……:：々a-zA-Z0-9\\\^\[\*\(\)\-]/ /g' | xargs -n 1 >> tmp_tanngo.txt"
+		cmd = "echo \"" + result + "\" | sed -e 's/\[[^\(]*\]\^([^\)]*)//g' | sed 's/[" + Pseudonym + " 　［／］？~★·（＊）、。?「」_※%<>/`……:：々a-zA-Z0-9\\\^\[\*\(\)\-]/ /g' | xargs -n 1 >> tmp_tanngo.txt"
 		#print(cmd)
 		os.system(cmd)
 		return result,tanngo_info

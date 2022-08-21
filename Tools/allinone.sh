@@ -5,6 +5,7 @@
 result=`date '+%Y%m%d'`
 rm -rf $result tmp_tanngo.txt
 mkdir $result
+mkdir $result"/src"
 for arg in "$@"
 do
    #与/之间与分割的字符 ，另外/后有一个空格不可省略
@@ -13,13 +14,18 @@ do
    echo $name
 
    rm AnnotateSentence.md Markdown.md
-   echo arg >> tmp_tanngo.txt
+   echo $arg >> tmp_tanngo.txt
+   cp $arg $result"/src"
    python3 ./tool.py -a $arg
    python3 ./tool.py -m AnnotateSentence.md
    echo "[$arg]($arg)" >> $result"/all_in_one.md"
    mv AnnotateSentence.md $result"/vs_"$name
    mv Markdown.md $result"/mk_"$name
+
 done
 
+sed -i 's/<details>//g' $result/*.md
+sed -i 's/<\/details>//g' $result/*.md
+sed -i 's/<summary>/**/g' $result/*.md
+sed -i 's/<\/summary>/**/g' $result/*.md
 mv tmp_tanngo.txt $result
-
