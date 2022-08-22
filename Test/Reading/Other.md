@@ -1,4 +1,4 @@
-**[Home](../Menu.md)**
+**[[ ../Menu.md | Home ]]**
 [TOC]
 ## Ohter
 ![](src/IMG_3069.JPG)
@@ -17,6 +17,4 @@
 ![](src/rakugo-2.PNG)
 ## サービス券
 ![](src/sa-bisu.PNG)
-<details>
-<summary></summary>
-</details>
+

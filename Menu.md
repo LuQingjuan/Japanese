@@ -1,9 +1,9 @@
 [TOC]
 
 ---
-* [Remember](Remember/Menu.md)
-* [Test](Test/Menu.md)
-* [Note](Note/Menu.md)
+* [[ Remember/Menu.md | Remember ]]
+* [[ Test/Menu.md | Test ]]
+* [[ Note/Menu.md | Note ]]
 
 ---
 ## Base

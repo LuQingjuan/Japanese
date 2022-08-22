@@ -1,15 +1,14 @@
-**[Home](../Menu.md)**
+**[[ ../Menu.md | Home ]]**
 [TOC]
 
 # 阅读
-[顔文字１](Reading/ka_o_mo_ji_1.md)
-[顔文字２](Reading/ka_o_mo_ji_2.md)
-[友美の日記](Reading/tomomi_no_ni_kki.md)
-[其他](Reading/Other.md)
+[[ Reading/ka_o_mo_ji.md | 顔文字 ]]
+[[ Reading/tomomi_no_ni_kki.md | 友美の日記 ]]
+[[ Reading/Other.md | 其他 ]]
 
 # 理解
-[紙の手帳](Reading/t_ka_mi_no_te_tyou.md)
-[焼き屋](Reading/t_ya_ki_ya.md)
+[[ Reading/t_ka_mi_no_te_tyou.md | 紙の手帳 ]]
+[[ Reading/t_ya_ki_ya.md | 焼き屋 ]]
 
 ---
 @import "20210417.md"
